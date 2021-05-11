@@ -9,15 +9,20 @@ PARTIAL_WORD = 1
 WORD = 2
 
 CACHE_SIZE = 8000
-
-location_cache = { }
+# Used to store Trie node locations
 file_cache = [-1 for i in range(CACHE_SIZE)] 
 
+# Lights used to display which mode the macropad is in
 leds = Led()
 
+## Global buffers
+# Key presses to be process
 key_queue = []
+# Keys currently being pressed
 held_keys = []
+# Text to be written out by the virtual keyboard
 current_word = ""
+# Text that was last written out by virtual keyboard
 written_word = ""
 
 keys = (('1', '2', '3'),
@@ -30,6 +35,7 @@ time.sleep(1)  # Sleep for a bit to avoid a race condition on some systems
 keyboard = Keyboard()
 time.sleep(0.5) 
 
+# Alternate macropad mode - map key input to function keys
 def run_macro_mode():
     macro_map = {
         '1' : Keycode.F1,
@@ -58,6 +64,7 @@ def run_macro_mode():
         keyboard.release_all()
     time.sleep(0.001)
 
+# Alternate macropad mode - map keys to actual ascii values: '1' -> '1' etc
 def run_numeric_mode():
     while True:
         initial_keys = keypad.pressed_keys
@@ -70,6 +77,8 @@ def run_numeric_mode():
                 held_keys.remove(hk)
     time.sleep(0.001)
 
+# Data class used to hold on to valid words and prefixes for a given sequence of keystrokes
+# These will be kept in a stack as you type to build a word
 class Results():
     __slots__ = ['words', 'pres']
     def __init__(self, words, pres):
@@ -79,6 +88,7 @@ class Results():
     def __str__(self):
         return f'words: {self.words}, pres: {self.pres}'
 
+# Choose mode based on held keys at startup
 if ('1' in keypad.pressed_keys):
     leds.show_red()
     run_numeric_mode()
@@ -88,10 +98,8 @@ elif ('2' in keypad.pressed_keys):
 else:
     leds.show_blue()
 
+# Flag to indicate to our main loop that we want to start a new word
 force_break_word = False
- 
-# led = digitalio.DigitalInOut(board.LED)
-# led.direction = digitalio.Direction.OUTPUT
 
 keypad_dict = {
     '1' : ['1'],
@@ -107,6 +115,7 @@ keypad_dict = {
     '#' : ['.', ',', '?', '!']
 }
 
+# given a file and location in that file, read a 24bit unsigned int
 def read_int(file, offset):
     if (offset < CACHE_SIZE):
         cached = file_cache[offset]
@@ -118,7 +127,7 @@ def read_int(file, offset):
         file_cache[offset] = x
     return x
 
-
+# Given an open file, starting location, and string, determine if the string is a word (or prefix) in our dictionary
 def search(file, offset, s: str):
     poll_keys()
     if len(s) == 0:
@@ -133,7 +142,9 @@ def search(file, offset, s: str):
             return search(file, file_val, s[1:])
         return NO_WORD
 
+# Given an open file, a key, and a list of valid prefixes, find all possible words/prefixes
 def get_words(file, input, valid_prefixes):
+    # Note that each key has up to 4 possible chars, so we'll need to try all of them
     chars = keypad_dict[input]
     output_words = []
     output_prefixes = []
@@ -147,7 +158,9 @@ def get_words(file, input, valid_prefixes):
                 output_words.append(test_word)
     return Results(output_words, output_prefixes)
 
-def common_chars(old_word, new_word):
+# if old_word has been typed, and new_word should replace it - how many chars to we need to replace?
+# ex: uncommon_chars("catch", "cab") == 3
+def uncommon_chars(old_word, new_word):
     old_len = len(old_word)
     common_count = old_len
     for i in range(min(old_len, len(new_word))):
@@ -157,23 +170,26 @@ def common_chars(old_word, new_word):
             break
     return common_count
 
-
+# provide text to be typed by virtual keyboard
 def submit(word):
     global current_word, written_word, key_queue
     current_word = word
     if len(key_queue) == 0:
-        cc = common_chars(written_word, current_word)
+        cc = uncommon_chars(written_word, current_word)
         erase_num(cc)
         lw = len(written_word)
         written_word = current_word
         keyboard.write(current_word[(lw - cc):])
 
+# inject 'num' backspace characters
 def erase_num(num):
     for _ in range(num):
         keyboard.press(Keycode.BACKSPACE)
         keyboard.release_all()
 
-def emit_char(word, clear = True):
+# write text, regardless of what was there before
+# 'clear' flag will clear context of last word
+def emit_raw_text(word, clear = True):
     global written_word, current_word
     if (written_word != current_word):
         submit(current_word)
@@ -185,9 +201,9 @@ def emit_char(word, clear = True):
         current_word += word
     keyboard.write(word)
 
+# global vars for keeping track of which/when modifier keys are pressed
 held_modified_keys = []
 held_key_times = {}
-
 last_modified_key = None
 last_modified_time = time.monotonic()
 last_modified_counter = 0
@@ -198,6 +214,7 @@ def flush_last_modified():
     last_modified_time = time.monotonic()
     last_modified_counter = 0
 
+# queue up key strokes to be processed, IFF modifier key is currently being held
 def poll_keys_modified(current_keys):
     global force_break_word, last_modified_key, last_modified_time, last_modified_counter
     for k in current_keys:
@@ -208,34 +225,39 @@ def poll_keys_modified(current_keys):
             key_dict = keypad_dict[k]
             if k is not last_modified_key or (now - last_modified_time > 0.6):
                 flush_last_modified()
-                emit_char(key_dict[0])
+                emit_raw_text(key_dict[0])
                 last_modified_key = k
             else:
                 last_modified_counter += 1
                 num_keys_for_char = len(key_dict)
                 if last_modified_counter < num_keys_for_char:
                     erase_num(1)
-                    emit_char(key_dict[last_modified_counter])
+                    emit_raw_text(key_dict[last_modified_counter])
                     last_modified_time = now
                 elif last_modified_counter == num_keys_for_char:
                     erase_num(1)
-                    emit_char(k)
+                    emit_raw_text(k)
                     flush_last_modified()
 
     for hk in held_modified_keys:
         if hk not in current_keys:
             held_modified_keys.remove(hk)
 
+# poll key input, queue up key strokes to be processed
 def poll_keys():
     initial_keys = keypad.pressed_keys
+    # if user holding modifier key, handle everything differently
     if '*' in initial_keys:
         return poll_keys_modified(initial_keys)
     else:
         flush_last_modified()
+    # handle new keys
     for k in initial_keys:
         if k not in held_keys:
             held_keys.append(k)
             held_key_times[k] = time.monotonic()
+            # '#' is special - it can be long pressed
+            # TODO - make long press generic?
             if k != '#':
                 key_queue.append(k)
         elif k == '#':
@@ -250,6 +272,7 @@ def poll_keys():
             if hk == '#':
                 key_queue.append(hk)
 
+## MAIN LOOP
 with open("out.bin", "rb") as fp:
     while True:
         word_index = 0
@@ -258,20 +281,25 @@ with open("out.bin", "rb") as fp:
         results = [ Results([""], []) ]
         result_index = 0
         while True:
+            # User opted to break the current word/traversal
             if force_break_word:
                 force_break_word = False
                 break
+            # No input to process
             if (len(key_queue) == 0):
                 poll_keys()
                 time.sleep(0.001)
                 continue
+
             c = key_queue.pop(0)
+            # hardcoded input -> output
             if c == '0':
-                emit_char(" ")
+                emit_raw_text(" ")
                 break
             if c == '*':
-                emit_char("\n")
+                emit_raw_text("\n")
                 break
+            # cycle through most recent results
             elif c == '#':
                 result = results[result_index]
                 word_count = len(result.words)
@@ -283,6 +311,7 @@ with open("out.bin", "rb") as fp:
                     word_index = (word_index + 1) % pres_count
                     submit(result.pres[word_index])
                 continue
+            # backspace, pop results stack
             if c == '1':
                 result_index = max(0, result_index - 1)
                 result = results[result_index]
@@ -290,12 +319,15 @@ with open("out.bin", "rb") as fp:
                     results.pop()
                 else:
                     erase_num(1)
+            # ignore any other keys we don't understand
             elif c < '2' or c > '9':
                 break
             else:
+                # search the dictionary!
                 result = get_words(fp, c, prefixes)
                 results.append(result)
                 result_index += 1
+
             print(result)
             word_count = len(result.words)
             pres_count = len(result.pres)
@@ -303,9 +335,10 @@ with open("out.bin", "rb") as fp:
                 submit(result.words[word_index % word_count])
             elif pres_count > 0:
                 submit(result.pres[word_index % pres_count])
+            # if we've run out of valid words/prefixes for a key sequence, just start appending the number
             elif c >= '2' and c <= '9':
-                emit_char(c, False)
-
+                emit_raw_text(c, False)
+            # keep track of all valid entries based on current keystroke
             prefixes = result.words + result.pres
 
 
