@@ -89,19 +89,6 @@ class Results():
     def __str__(self):
         return f'keys: {self.keys}, words: {self.words}, pres: {self.pres}'
 
-# Choose mode based on held keys at startup
-if ('1' in keypad.pressed_keys):
-    leds.show_red()
-    run_numeric_mode()
-elif ('2' in keypad.pressed_keys):
-    leds.show_green()
-    run_macro_mode()
-else:
-    leds.show_blue()
-
-# Flag to indicate to our main loop that we want to start a new word
-force_break_word = False
-
 keypad_dict = {
     '1' : ['1'],
     '2' : ['a', 'b', 'c'],
@@ -116,11 +103,45 @@ keypad_dict = {
     '#' : ['.', ',', '?', '!']
 }
 
+def error_mode():
+    print("ERROR!")
+    while True:
+        time.sleep(0.01)
+        pass
+
+reverse_key_dict = { }
+for k, l in keypad_dict.items():
+    for c in l:
+        reverse_key_dict[c] = k
+
 # TODO - read in word list from txt file, build this dict dynamically.
-priority_words = {
-    4: "i",
-    46: "in"
-}
+priority_words = { }
+try:
+    with open("priority_words.txt", "r") as fp:
+        for line in fp.readlines():
+            line = line.strip().lower()
+            key_seq = ""
+            for c in line:
+                key = reverse_key_dict.get(c)
+                if key is None:
+                    error_mode()
+                key_seq = key_seq + key
+            priority_words[key_seq] = line       
+except IOError:
+    pass
+
+# Choose mode based on held keys at startup
+if ('1' in keypad.pressed_keys):
+    leds.show_red()
+    run_numeric_mode()
+elif ('2' in keypad.pressed_keys):
+    leds.show_green()
+    run_macro_mode()
+else:
+    leds.show_blue()
+
+# Flag to indicate to our main loop that we want to start a new word
+force_break_word = False
 
 # given a file and location in that file, read a 24bit unsigned int
 def read_int(file, offset):
@@ -163,7 +184,7 @@ def get_words(file, input, last_result):
                 output_prefixes.append(test_word)
             elif result == WORD:
                 output_words.append(test_word)
-    return Results((last_result.keys * 10) + int(input), output_words, output_prefixes)
+    return Results(last_result.keys + input, output_words, output_prefixes)
 
 # if old_word has been typed, and new_word should replace it - how many chars to we need to replace?
 # ex: uncommon_chars("catch", "cab") == 3
@@ -284,7 +305,7 @@ with open("out.bin", "rb") as fp:
     while True:
         word_index = 0
         current_word = ""
-        last_result = Results(0, [""], [])
+        last_result = Results("", [""], [])
         results = [ last_result ]
         result_index = 0
         while True:

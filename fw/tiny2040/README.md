@@ -1,5 +1,5 @@
 ## Required (Circuit/Micro)Python Libraries:
-**Make sure the following files are in this folder, on your microcontroller**
+**Make sure the following files are in a folder called `lib`, on your microcontroller**
 * adafruit_hid
     * `adafruit_hid/__init__.mpy`
     * `adafruit_hid/consumer_control_code.mpy`
