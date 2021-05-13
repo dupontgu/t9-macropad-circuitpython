@@ -4,8 +4,6 @@ from pathlib import Path
 
 platform_dirs = set([d for d in os.walk('.')][0][1])
 platform_dirs = platform_dirs - {'core', 'bundle'}
-# platform_dirs.remove('core')
-# platform_dirs.remove('bundle')
 
 for pd in platform_dirs:
     print(pd)

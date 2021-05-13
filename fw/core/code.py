@@ -80,13 +80,14 @@ def run_numeric_mode():
 # Data class used to hold on to valid words and prefixes for a given sequence of keystrokes
 # These will be kept in a stack as you type to build a word
 class Results():
-    __slots__ = ['words', 'pres']
-    def __init__(self, words, pres):
+    __slots__ = ['keys', 'words', 'pres']
+    def __init__(self, keys, words, pres):
+        self.keys = keys
         self.words = words
         self.pres = pres
 
     def __str__(self):
-        return f'words: {self.words}, pres: {self.pres}'
+        return f'keys: {self.keys}, words: {self.words}, pres: {self.pres}'
 
 # Choose mode based on held keys at startup
 if ('1' in keypad.pressed_keys):
@@ -113,6 +114,12 @@ keypad_dict = {
     '9' : ['w', 'x', 'y', 'z'],
     '0' : [' ', '0', '\n'],
     '#' : ['.', ',', '?', '!']
+}
+
+# TODO - read in word list from txt file, build this dict dynamically.
+priority_words = {
+    4: "i",
+    46: "in"
 }
 
 # given a file and location in that file, read a 24bit unsigned int
@@ -143,12 +150,12 @@ def search(file, offset, s: str):
         return NO_WORD
 
 # Given an open file, a key, and a list of valid prefixes, find all possible words/prefixes
-def get_words(file, input, valid_prefixes):
+def get_words(file, input, last_result):
     # Note that each key has up to 4 possible chars, so we'll need to try all of them
     chars = keypad_dict[input]
     output_words = []
     output_prefixes = []
-    for prefix in valid_prefixes:
+    for prefix in (last_result.words + last_result.pres):
         for char in chars:
             test_word = prefix + char
             result = search(file, 0, test_word)
@@ -156,7 +163,7 @@ def get_words(file, input, valid_prefixes):
                 output_prefixes.append(test_word)
             elif result == WORD:
                 output_words.append(test_word)
-    return Results(output_words, output_prefixes)
+    return Results((last_result.keys * 10) + int(input), output_words, output_prefixes)
 
 # if old_word has been typed, and new_word should replace it - how many chars to we need to replace?
 # ex: uncommon_chars("catch", "cab") == 3
@@ -277,8 +284,8 @@ with open("out.bin", "rb") as fp:
     while True:
         word_index = 0
         current_word = ""
-        prefixes = [""]
-        results = [ Results([""], []) ]
+        last_result = Results(0, [""], [])
+        results = [ last_result ]
         result_index = 0
         while True:
             # User opted to break the current word/traversal
@@ -324,7 +331,7 @@ with open("out.bin", "rb") as fp:
                 break
             else:
                 # search the dictionary!
-                result = get_words(fp, c, prefixes)
+                result = get_words(fp, c, last_result)
                 results.append(result)
                 result_index += 1
 
@@ -332,14 +339,18 @@ with open("out.bin", "rb") as fp:
             word_count = len(result.words)
             pres_count = len(result.pres)
             if word_count > 0:
+                priority_word = priority_words.get(result.keys)
+                if priority_word is not None:
+                    try:
+                        word_index = result.words.index(priority_word)
+                    except ValueError:
+                        pass 
                 submit(result.words[word_index % word_count])
             elif pres_count > 0:
                 submit(result.pres[word_index % pres_count])
             # if we've run out of valid words/prefixes for a key sequence, just start appending the number
             elif c >= '2' and c <= '9':
                 emit_raw_text(c, False)
-            # keep track of all valid entries based on current keystroke
-            prefixes = result.words + result.pres
-
+            last_result = result
 
  
