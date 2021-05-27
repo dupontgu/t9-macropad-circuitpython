@@ -6,7 +6,7 @@ class Keyboard():
         self.pressed = []
 
     def press(self, key):
-        mapped_key = key_mapping.get(key)
+        mapped_key = key_mapping.get(key, None)
         if mapped_key is None:
             return
         if mapped_key not in self.pressed:
@@ -16,12 +16,10 @@ class Keyboard():
     def release_all(self):
         for key in self.pressed:
             self.keyboard.release(key)
+            self.pressed.remove(key)
 
     def write(self, text):
-        for c in text:
-            self.keyboard.press(c)
-            self.keyboard.release(c)
-
+        self.keyboard.type(text)
 
 class Keycode():
     BACKSPACE = "backspace"
