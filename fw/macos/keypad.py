@@ -4,12 +4,16 @@ class Keypad():
     def __init__(self, keys):
         self.keys = keys
         self.pressed_keys = set()
-        listener = keyboard.Listener(
+        self.listener = keyboard.Listener(
+            suppress=True,
             on_press=lambda e: self.on_press(e),
             on_release=lambda e: self.on_release(e))
-        listener.start()
+        self.listener.start()
 
     def on_press(self, key):
+        if (key == keyboard.Key.esc):
+            print("stopping key listener")
+            self.listener.stop()
         if hasattr(key, 'char'):
             self.pressed_keys.add(key.char)
 

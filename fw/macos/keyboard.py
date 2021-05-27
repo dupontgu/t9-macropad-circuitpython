@@ -1,18 +1,27 @@
+from pynput.keyboard import Key, Controller
+
 class Keyboard():
     def __init__(self):
-        self.buffer = ""
+        self.keyboard = Controller()
+        self.pressed = []
 
     def press(self, key):
-        if key == Keycode.BACKSPACE:
-            self.buffer = self.buffer[:-1]
-        print("print ", key)
+        mapped_key = key_mapping.get(key)
+        if mapped_key is None:
+            return
+        if mapped_key not in self.pressed:
+            self.pressed.append(mapped_key)
+            self.keyboard.press(mapped_key)
 
     def release_all(self):
-        pass
+        for key in self.pressed:
+            self.keyboard.release(key)
 
     def write(self, text):
-        self.buffer = self.buffer + text
-        print("buffer:", self.buffer)
+        for c in text:
+            self.keyboard.press(c)
+            self.keyboard.release(c)
+
 
 class Keycode():
     BACKSPACE = "backspace"
@@ -28,3 +37,7 @@ class Keycode():
     F10 = "F10"
     F11 = "F11"
     F12 = "F12"
+
+key_mapping = {
+    Keycode.BACKSPACE : Key.backspace
+}
