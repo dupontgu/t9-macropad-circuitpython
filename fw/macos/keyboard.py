@@ -5,13 +5,13 @@ class Keyboard():
     def press(self, key):
         if key == Keycode.BACKSPACE:
             self.buffer = self.buffer[:-1]
-        print("print ", key)
 
     def release_all(self):
         pass
 
     def write(self, text):
         self.buffer = self.buffer + text
+        # pynput virtual typing doesn't seem to work on Mavericks, so just print the output
         print("buffer:", self.buffer)
 
 class Keycode():
