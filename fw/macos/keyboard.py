@@ -1,25 +1,18 @@
-from pynput.keyboard import Key, Controller
-
 class Keyboard():
     def __init__(self):
-        self.keyboard = Controller()
-        self.pressed = []
+        self.buffer = ""
 
     def press(self, key):
-        mapped_key = key_mapping.get(key, None)
-        if mapped_key is None:
-            return
-        if mapped_key not in self.pressed:
-            self.pressed.append(mapped_key)
-            self.keyboard.press(mapped_key)
+        if key == Keycode.BACKSPACE:
+            self.buffer = self.buffer[:-1]
 
     def release_all(self):
-        for key in self.pressed:
-            self.keyboard.release(key)
-            self.pressed.remove(key)
+        pass
 
     def write(self, text):
-        self.keyboard.type(text)
+        self.buffer = self.buffer + text
+        # pynput virtual typing doesn't seem to work on Mavericks, so just print the output
+        print("buffer:", self.buffer)
 
 class Keycode():
     BACKSPACE = "backspace"
@@ -35,7 +28,3 @@ class Keycode():
     F10 = "F10"
     F11 = "F11"
     F12 = "F12"
-
-key_mapping = {
-    Keycode.BACKSPACE : Key.backspace
-}
