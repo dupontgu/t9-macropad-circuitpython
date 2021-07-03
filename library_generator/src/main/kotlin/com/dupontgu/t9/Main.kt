@@ -1,4 +1,7 @@
 import java.io.File
+import java.io.FileOutputStream
+import java.io.InputStream
+import java.io.OutputStream
 import java.util.*
 
 // Each pointer is a 24 bit address
@@ -13,16 +16,37 @@ private const val OUT_FILE = "out.bin"
 // a-z
 private const val ALPHA_COUNT = 26
 
-fun main() {
-    // read in dict file
-    val tree = {}.javaClass.getResource(DICT_FILE)
-        .openStream()
-        .bufferedReader()
-        .lineSequence()
-        // clean each line
-        .map { line -> line.trim().lowercase(Locale.getDefault()).filter { it.isLetter() } }
-        // insert each word into the Trie
-        .fold<String, TrieNode>(NullNode) { acc, s -> acc.insert(s) }
+// helpers to check if a library entry matches our supported alphabet
+private val alphabetRegex = Regex("^[a-zA-Z]*\$")
+private fun String.isValid() = matches(alphabetRegex)
+
+private const val MAX_LINE_LEN = 25
+private fun String.hasValidLength() = length <= MAX_LINE_LEN
+
+sealed class LibraryResult : Throwable() {
+    data class Success(val numBytesWritten: Int) : LibraryResult()
+    sealed class Error : LibraryResult() {
+        data class LineTooLongError(val line: String) : Error()
+        data class InvalidLineError(val line: String) : Error()
+    }
+}
+
+fun serializeLibraryFile(input: InputStream, output: OutputStream): LibraryResult {
+    val tree = try {
+        input
+            .bufferedReader()
+            .lineSequence()
+            // clean each line
+            .map { line ->
+                if (!line.isValid()) throw LibraryResult.Error.InvalidLineError(line)
+                if (!line.hasValidLength()) throw LibraryResult.Error.LineTooLongError(line)
+                line.trim().lowercase(Locale.getDefault()).filter { it.isLetter() }
+            }
+            // insert each word into the Trie
+            .fold<String, TrieNode>(NullNode) { acc, s -> acc.insert(s) }
+    } catch (err: LibraryResult.Error) {
+        return err
+    }
 
     // serialize the tree
     val queue = ArrayDeque<TrieNode>().apply { addFirst(tree) }
@@ -36,11 +60,22 @@ fun main() {
 
     // convert UInts to 3 byte addresses
     val flatList = serializedTreeAddresses.flatMap { it.toBytes() }
-    File(OUT_FILE).apply {
-        writeBytes(flatList.toByteArray())
-    }
+    // write to output
+    output.use { it.write(flatList.toByteArray()) }
+    return LibraryResult.Success(flatList.size)
+}
 
-    println("Wrote to file: $OUT_FILE, size in bytes: ${flatList.size}")
+fun main() {
+    val input = {}.javaClass.getResource(DICT_FILE).openStream()
+    val output = FileOutputStream(File(OUT_FILE))
+    val result = serializeLibraryFile(input, output)
+    println(
+        when (result) {
+            is LibraryResult.Success -> "Wrote to file $OUT_FILE, size: ${result.numBytesWritten} bytes"
+            is LibraryResult.Error.LineTooLongError -> "ERROR! Line was too long: ${result.line.take(25)}(...)"
+            is LibraryResult.Error.InvalidLineError -> "ERROR! Line contains invalid characters: ${result.line.take(25)}(...)"
+        }
+    )
 }
 
 sealed class TrieNode {
