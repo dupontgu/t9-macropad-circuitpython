@@ -1,6 +1,17 @@
-plugins {
-    id 'org.jetbrains.kotlin.jvm' version '1.5.10'
+buildscript {
+    ext.kotlin_version = '1.5.10'
+    ext.ktor_version = '1.6.1'
+    ext.appengine_version = '1.9.60'
+    ext.appengine_plugin_version = '2.4.1'
 }
+
+plugins {
+    id 'org.jetbrains.kotlin.jvm' version "$kotlin_version"
+    id 'com.google.cloud.tools.appengine' version "$appengine_plugin_version"
+}
+
+apply plugin: 'war'
+apply plugin: 'com.google.cloud.tools.appengine'
 
 group 'com.dupontgu'
 version '1.0-SNAPSHOT'
@@ -11,4 +22,20 @@ repositories {
 
 dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib"
+    implementation 'org.slf4j:slf4j-log4j12:1.7.29'
+    compile "io.ktor:ktor-server-servlet:$ktor_version"
+    compile "io.ktor:ktor-html-builder:$ktor_version"
+
+    providedCompile "com.google.appengine:appengine:$appengine_version"
+
 }
+
+appengine {  // App Engine tasks configuration
+    deploy {   // deploy configuration
+        projectId = 'GCLOUD_CONFIG'
+        version = '1'
+    }
+}
+
+task run(dependsOn: appengineRun)
+

@@ -11,7 +11,7 @@ private const val ADDRESS_LENGTH_BYTES = 3
 private const val DICT_FILE = "/dict.txt"
 
 // where the custom library file will be written
-private const val OUT_FILE = "out.bin"
+private const val OUT_FILE = "library.t9l"
 
 // a-z
 private const val ALPHA_COUNT = 26
@@ -25,9 +25,9 @@ private fun String.hasValidLength() = length <= MAX_LINE_LEN
 
 sealed class LibraryResult : Throwable() {
     data class Success(val numBytesWritten: Int) : LibraryResult()
-    sealed class Error : LibraryResult() {
-        data class LineTooLongError(val line: String) : Error()
-        data class InvalidLineError(val line: String) : Error()
+    sealed class Error(override val message: String) : LibraryResult() {
+        data class LineTooLongError(val line: String) : Error("Error: this file contains a line that is too long: ${line.take(25)}")
+        data class InvalidLineError(val line: String) : Error("Error: this file contains a line that contains invalid characters: ${line.take(25)}")
     }
 }
 

@@ -13,4 +13,4 @@ directory, and change the `DICT_FILE` property in [Main.kt](/src/main/kotlin/Mai
 
 ## Loading the dictionary
 - Run [`main()`](/src/main/kotlin/Main.kt).
-- Copy the `out.bin` file on to your CIRCUITPY drive, next to the firmware (code.py). Be sure to make a backup of the old one if you don't want to lose it!
+- Copy the `library.t9l` file on to your CIRCUITPY drive, next to the firmware (code.py). Be sure to make a backup of the old one if you don't want to lose it!
