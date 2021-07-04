@@ -301,7 +301,7 @@ def poll_keys():
                 key_queue.append(hk)
 
 ## MAIN LOOP
-with open("out.bin", "rb") as fp:
+with open("library.t9l", "rb") as fp:
     while True:
         word_index = 0
         current_word = ""

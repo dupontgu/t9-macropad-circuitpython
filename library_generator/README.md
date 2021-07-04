@@ -3,6 +3,8 @@
 This Kotlin program takes in a list of words and spits out a binary file containing
 a serialized Trie that can be traversed by this project's [firmware](../fw).
 
+**There is an instance of this program hosted online! Generate your library file [here](https://t9-library-generator.uk.r.appspot.com/library).**
+
 ## Editing the dictionary
 
 - Add/remove words from the [`dict.txt`](/src/main/resources/dict.txt) file. 
@@ -13,4 +15,4 @@ directory, and change the `DICT_FILE` property in [Main.kt](/src/main/kotlin/Mai
 
 ## Loading the dictionary
 - Run [`main()`](/src/main/kotlin/Main.kt).
-- Copy the `out.bin` file on to your CIRCUITPY drive, next to the firmware (code.py). Be sure to make a backup of the old one if you don't want to lose it!
+- Copy the `library.t9l` file on to your CIRCUITPY drive, next to the firmware (code.py). Be sure to make a backup of the old one if you don't want to lose it!

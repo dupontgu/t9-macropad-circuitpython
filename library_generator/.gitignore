@@ -1,1 +1,5 @@
-out.bin
+library.t9l
+.gradle/
+build/
+.idea/
+local.properties

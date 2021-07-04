@@ -10,6 +10,7 @@ Those boards have smaller default libraries.
 Currently supported boards:
 * [Pimoroni Tiny2040](./tiny2040)
 * [Raspberry Pi Pico](./pico)
+* [Adafruit QT Py RP2040](./qtpy2040)
 
 There are also [`macos`](./macos)/[`win32`](./win32) folders, which contain mocked IO dependencies so that the firmware can be
 tested natively on desktop. *For key press detection on Mac, you'll need to give accessibility permissions to Python*.
