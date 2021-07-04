@@ -14,7 +14,7 @@ apply plugin: 'war'
 apply plugin: 'com.google.cloud.tools.appengine'
 
 group 'com.dupontgu'
-version '1.0-SNAPSHOT'
+version '0.0.5'
 
 repositories {
     mavenCentral()
