@@ -3,6 +3,8 @@
 This Kotlin program takes in a list of words and spits out a binary file containing
 a serialized Trie that can be traversed by this project's [firmware](../fw).
 
+**There is an instance of this program hosted online! Generate your library file [here](https://t9-library-generator.uk.r.appspot.com/library).**
+
 ## Editing the dictionary
 
 - Add/remove words from the [`dict.txt`](/src/main/resources/dict.txt) file. 
