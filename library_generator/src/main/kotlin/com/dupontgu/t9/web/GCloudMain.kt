@@ -1,6 +1,7 @@
 package com.dupontgu.t9.web
 
 import LibraryResult
+import com.dupontgu.t9.web.DevBoard.*
 import io.ktor.application.*
 import io.ktor.features.*
 import io.ktor.html.*
@@ -46,10 +47,10 @@ fun Application.main() {
             call.respondHtml { renderBoardPickerPage(destination) }
         }
 
-        fun ApplicationCall.parseDevBoard() : DevBoard? {
+        fun ApplicationCall.parseDevBoard(): DevBoard? {
             val boardParam = parameters["board"]
             return try {
-                DevBoard.valueOf(boardParam ?: DevBoard.QTPY_2040.name)
+                valueOf(boardParam ?: QTPY_2040.name)
             } catch (e: IllegalArgumentException) {
                 println("ERROR: Invalid board specified: $boardParam")
                 null
@@ -137,7 +138,7 @@ private fun HTML.renderBoardPickerPage(destination: String) {
         h1 { +"Which development board do you have?" }
         narrowDiv {
             ul {
-                DevBoard.values().forEach {
+                values().forEach {
                     li {
                         a("/$destination/${it.name}") { +it.displayName }
                     }
@@ -153,6 +154,7 @@ private fun HTML.renderKitInstructionsPage(devBoard: DevBoard) {
     }
     body {
         h1 { +"Assembling the T9 Macropad" }
+        h3 { a("/") { +"(Project Root)" } }
         narrowDiv {
             b { +"A few things before you get started:" }
             ul {
@@ -160,7 +162,7 @@ private fun HTML.renderKitInstructionsPage(devBoard: DevBoard) {
                 li { +"These instructions assume you have some soldering ability. This project is not too bad! But you might not want this to be the first thing you've ever soldered." }
                 li {
                     +"This dev board has castellated pads, and will be soldered on to the surface of my PCB. If you've never done this kind of soldering, "
-                    a("https://www.youtube.com/watch?v=rGvvwXrv310"){ +"This tutorial is awesome." }
+                    a("https://www.youtube.com/watch?v=rGvvwXrv310") { +"This tutorial is awesome." }
                 }
             }
         }
@@ -193,16 +195,95 @@ private fun HTML.renderKitInstructionsPage(devBoard: DevBoard) {
         }
         br(); br()
         +"That's it for physical assembly. Instructions for installing firmware on a fresh ${devBoard.displayName} are "
-        a("/firmware/${devBoard.name}"){ +"here" }
+        a("/firmware/${devBoard.name}") { +"here" }
     }
 }
+
+private val DevBoard.circuitPythonLink: String
+    get() = when (this) {
+        QTPY_2040 -> "https://circuitpython.org/board/adafruit_qtpy_rp2040/"
+        TINY_2040 -> "https://circuitpython.org/board/pimoroni_tiny2040/"
+    }
+
+private val DevBoard.fwZipName: String
+    get() = when (this) {
+        QTPY_2040 -> "qtpy2040"
+        TINY_2040 -> "tiny2040"
+    }
 
 private fun HTML.renderFirmwarePage(devBoard: DevBoard) {
     head {
         title { +"T9 Firmware Instructions" }
     }
     body {
-        +"// Almost done"
+        h1 { +"Installing T9 CircuitPython Firmware" }
+        h3 { a("/") { +"(Project Root)" } }
+        narrowDiv {
+            ol {
+                li {
+                    +"Dowload the latest version of CircuitPython for the "
+                    a(devBoard.circuitPythonLink) { +"${devBoard.displayName}." }
+                    +" As of July 2021, version 6.3.0 works great on all boards."
+                }
+                li {
+                    +"On your development board, hold the button labeled 'boot', and plug it into your computer."
+                }
+                li {
+                    +"""
+                        After a few seconds, you'll see a new storage drive mounted to your computer. Release the button.
+                        Drag the UF2 file downloaded in step 1 onto that drive. This will install CircuitPython.
+                    """.trimIndent()
+                }
+                li {
+                    +"""
+                        When the transfer is complete, the dev board will reboot and the storage drive will remount.
+                        Confirm that the drive is now named 'CIRCUITPY'. This indicates a successful CircuitPython installation.
+                        We still have to install the T9 code!
+                    """.trimIndent()
+                }
+                li {
+                    +"Find the latest T9 firmware release on the "
+                    a("https://github.com/dupontgu/t9-macropad-circuitpython/releases"){ +"GitHub releases page." }
+                    +"""
+                        Each release should have a list of .zip files associated with it. Find the one that matches your dev board.
+                        This board's zip file should be called: ${devBoard.fwZipName}.zip. Download and unzip it.
+                    """.trimIndent()
+                }
+                li {
+                    +"""
+                        Copy all of the files from the extracted ${devBoard.fwZipName} folder onto your dev board, 
+                        which should still be mounted on your computer as 'CIRCUITPY'. Overwrite any conflicting files.
+                        This may take a minute. 
+                    """.trimIndent()
+                }
+                li {
+                    +"""
+                        Download the CircuitPython library bundle that matches the CircuitPython version that you installed.
+                        You can find all versions of the bundle 
+                    """.trimIndent()
+                    a("https://circuitpython.org/libraries"){ +"here." }
+                }
+                li {
+                    +"""
+                        From the downloaded ${devBoard.fwZipName} folder, open the 'README' file.
+                        It will contain a list of CircuitPython libraries that need to be installed as a final step.
+                        Find each of the listed libraries in the CircuitPython bundle that you downloaded in the previous step,
+                        and copy them into a folder called 'lib' on your 'CIRCUITPY' drive.
+                        Some library files - such as the 'adafruit_hid' library - need to be grouped into a subfolder within 'lib'.
+                        The 'README' file should indicate when this is the case. Here is an example of a matching 'README' 
+                        and matching directory structure. NOTE THAT THE LIBRARIES IN THIS IMAGE MAY NOT BE UP TO DATE!
+                    """.trimIndent()
+                    img(src = "/static/placeholder.png")
+                }
+                li {
+                    +"""
+                        With CircuitPython, the T9 firmware, and the libraries installed, the board should reboot
+                        and the light should turn blue after ~5 seconds. You're good to go! Check out the full usage instructions 
+                    """.trimIndent()
+                    a("/usage") { +"here!" }
+                }
+            }
+        }
     }
 }
 
@@ -212,7 +293,7 @@ fun HTML.renderUsageInstructionsPage() {
     }
     body {
         h1 { +"Usage Instructions" }
-        h3 { a("../") { +"(Project Root)" } }
+        h3 { a("/") { +"(Project Root)" } }
         narrowDiv {
             ol {
                 li { +"In general, you just need to tap the number key (2-9) containing the letter you’re trying to type. If you get to the end of the word, and there’s a word there that’s not the one you want, just hit the # button. That will cycle through all valid words that match the key pattern you’ve entered. For example, ‘gate’ and ‘have’ would both be available after typing 4-2-8-3." }
@@ -239,7 +320,7 @@ fun HTML.renderLibraryGeneratorPage() {
     }
     body {
         h1 { +"Guy's T9 Library Generator" }
-        h3 { a("../") { +"(Project Root)" } }
+        h3 { a("/") { +"(Project Root)" } }
         +"This page allows you to customize the built-in word library on your "
         a("https://hackaday.io/project/179977-standalone-t9-predictive-keyboard") {
             +"Standalone T9 Predictive Keyboard."

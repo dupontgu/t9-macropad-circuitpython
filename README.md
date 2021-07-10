@@ -1,3 +1,5 @@
 # T9 Macropad (via CircuitPython)
 * [Firmware](./fw)
 * [Custom Library Generator](./library_generator)
+* [Project Video]("https://youtu.be/6cbBSEbwLUI")
+* [Project Website]("https://t9-library-generator.uk.r.appspot.com/")
