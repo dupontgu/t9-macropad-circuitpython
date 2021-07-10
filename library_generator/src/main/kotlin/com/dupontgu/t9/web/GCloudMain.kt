@@ -12,10 +12,18 @@ import io.ktor.routing.*
 import kotlinx.html.*
 import org.apache.log4j.BasicConfigurator
 import serializeLibraryFile
+import java.lang.IllegalArgumentException
 import java.util.*
 import kotlin.io.path.createTempFile
 
 private const val LIB_FILE_NAME = "library.t9l"
+
+private enum class DevBoard(
+    val displayName: String
+) {
+    QTPY_2040("Adafruit QT Py RP2040"),
+    TINY_2040("Pimoroni Tiny 2040")
+}
 
 fun Application.main() {
     BasicConfigurator.configure()
@@ -32,6 +40,31 @@ fun Application.main() {
         get("/library") { call.respondHtml(HttpStatusCode.OK, HTML::renderLibraryGeneratorPage) }
         // Usage Instructions
         get("/usage") { call.respondHtml(HttpStatusCode.OK, HTML::renderUsageInstructionsPage) }
+
+        get("/board") {
+            val destination = call.request.queryParameters["destination"] ?: "assembly"
+            call.respondHtml { renderBoardPickerPage(destination) }
+        }
+
+        fun ApplicationCall.parseDevBoard() : DevBoard? {
+            val boardParam = parameters["board"]
+            return try {
+                DevBoard.valueOf(boardParam ?: DevBoard.QTPY_2040.name)
+            } catch (e: IllegalArgumentException) {
+                println("ERROR: Invalid board specified: $boardParam")
+                null
+            }
+        }
+
+        get("/assembly/{board}") {
+            val devBoard = call.parseDevBoard() ?: return@get call.respond(HttpStatusCode.NotFound)
+            call.respondHtml(HttpStatusCode.OK) { renderKitInstructionsPage(devBoard) }
+        }
+
+        get("/firmware/{board}") {
+            val devBoard = call.parseDevBoard() ?: return@get call.respond(HttpStatusCode.NotFound)
+            call.respondHtml(HttpStatusCode.OK) { renderFirmwarePage(devBoard) }
+        }
 
         post("/upload") { _ ->
             val multipart = call.receiveMultipart()
@@ -71,11 +104,105 @@ fun HTML.renderRootPage() {
         +"Read the usage instructions "; a("/usage") { +"here." }; br()
         +"Generate your own custom T9 library "; a("/library") { +"here." }; br()
         +"Purchase "; a("https://www.etsy.com/shop/EsotericGadgetsByGuy?ele=shop_open") { +"here!!" }; +" (limited supply)"; br();
+        +"If you have the DIY kit (or just the PCB), assembly instructions are "; a("/board?destination=assembly") { +"here." }; br();
+        +"If you need to install the T9 firmware, check "; a("/board?destination=firmware") { +"here." }; br();
         +"Follow Guy on Twitter "; a("https://twitter.com/gvy_dvpont") { +"here." }; br()
         +"Email Guy at "; a("mailto:gvy.dvpont@gmail.com") { +"gvy.dvpont@gmail.com." }; br()
         +"Watch the YouTube video "; a("https://youtu.be/6cbBSEbwLUI") { +"here." }; br()
         +"See the Hackaday.io project page "; a("https://hackaday.io/project/179977-standalone-t9-predictive-keyboard") { +"here." }; br()
         +"Find the source code "; a("https://github.com/dupontgu/t9-macropad-circuitpython") { +"here." }; br()
+    }
+}
+
+private fun BODY.narrowDiv(content: DIV.() -> Unit) {
+    div {
+        style {
+            unsafe {
+                raw(
+                    """
+                        div { max-width: 800px; }
+                    """
+                )
+            }
+        }
+        content()
+    }
+}
+
+private fun HTML.renderBoardPickerPage(destination: String) {
+    head {
+        title { +"Choose Your Dev Board" }
+    }
+    body {
+        h1 { +"Which development board do you have?" }
+        narrowDiv {
+            ul {
+                DevBoard.values().forEach {
+                    li {
+                        a("/$destination/${it.name}") { +it.displayName }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun HTML.renderKitInstructionsPage(devBoard: DevBoard) {
+    head {
+        title { +"T9 Keypad Assembly" }
+    }
+    body {
+        h1 { +"Assembling the T9 Macropad" }
+        narrowDiv {
+            b { +"A few things before you get started:" }
+            ul {
+                li { +"Confirm that you're using the ${devBoard.displayName} development board." }
+                li { +"These instructions assume you have some soldering ability. This project is not too bad! But you might not want this to be the first thing you've ever soldered." }
+                li {
+                    +"This dev board has castellated pads, and will be soldered on to the surface of my PCB. If you've never done this kind of soldering, "
+                    a("https://www.youtube.com/watch?v=rGvvwXrv310"){ +"This tutorial is awesome." }
+                }
+            }
+        }
+        h3 { +"Step 1: Attach your dev board" }
+        img(src = "/static/placeholder.png")
+        narrowDiv {
+            +"""
+                |Solder the castellated pins of your dev board on to the pads on the Macropad as shown. 
+                |The two pins closest to the USB jack on your dev board should line up with the uppermost 
+                |pads on the macropad. Solder all pins that come in contact with a pad, and note that some 
+                |dev boards may extend beyond the pads.
+                |""".trimMargin()
+        }
+        h3 { +"Step 2: Solder the diodes" }
+        img(src = "/static/placeholder.png")
+        narrowDiv {
+            +"""
+                |Line your 12 diodes up with white silkscreen outlines on the macropad - they're labeled D1 through D12.
+                |Each diode should have a stripe or dark marking indicating which terminal is the cathode (-). 
+                |Orient each diode such that it's cathode terminal is pushed through the hole on the right. 
+                |Push each positive terminal through the corresponding left hole, and solder all terminals to the board. 
+                |""".trimMargin()
+        }
+        h3 { +"Step 3: Attach your key switches" }
+        img(src = "/static/placeholder.png")
+        narrowDiv {
+            +"""
+                |Push your key switches into each of the 12 slots, and solder the metal terminals to the macropad from the bottom.
+                |""".trimMargin()
+        }
+        br(); br()
+        +"That's it for physical assembly. Instructions for installing firmware on a fresh ${devBoard.displayName} are "
+        a("/firmware/${devBoard.name}"){ +"here" }
+    }
+}
+
+private fun HTML.renderFirmwarePage(devBoard: DevBoard) {
+    head {
+        title { +"T9 Firmware Instructions" }
+    }
+    body {
+        +"// Almost done"
     }
 }
 
@@ -86,14 +213,7 @@ fun HTML.renderUsageInstructionsPage() {
     body {
         h1 { +"Usage Instructions" }
         h3 { a("../") { +"(Project Root)" } }
-        div {
-            style {
-                unsafe {
-                    raw("""
-                        div { max-width: 800px; }
-                    """)
-                }
-            }
+        narrowDiv {
             ol {
                 li { +"In general, you just need to tap the number key (2-9) containing the letter you’re trying to type. If you get to the end of the word, and there’s a word there that’s not the one you want, just hit the # button. That will cycle through all valid words that match the key pattern you’ve entered. For example, ‘gate’ and ‘have’ would both be available after typing 4-2-8-3." }
                 li { +"Hit ‘0’ to enter a space." }
