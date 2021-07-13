@@ -151,6 +151,13 @@ private fun HTML.renderBoardPickerPage(destination: String) {
 private fun HTML.renderKitInstructionsPage(devBoard: DevBoard) {
     head {
         title { +"T9 Keypad Assembly" }
+        style {
+            unsafe {
+                raw("""
+                       img { max-width: 800px; }
+                       """)
+            }
+        }
     }
     body {
         h1 { +"Assembling the T9 Macropad" }
@@ -167,7 +174,7 @@ private fun HTML.renderKitInstructionsPage(devBoard: DevBoard) {
             }
         }
         h3 { +"Step 1: Attach your dev board" }
-        img(src = "/static/placeholder.png")
+        img(src = "/static/${devBoard.name}/pad_lineup.jpg")
         narrowDiv {
             +"""
                 |Solder the castellated pins of your dev board on to the pads on the Macropad as shown. 
@@ -177,7 +184,7 @@ private fun HTML.renderKitInstructionsPage(devBoard: DevBoard) {
                 |""".trimMargin()
         }
         h3 { +"Step 2: Solder the diodes" }
-        img(src = "/static/placeholder.png")
+        img(src = "/static/single_diode.jpg")
         narrowDiv {
             +"""
                 |Line your 12 diodes up with white silkscreen outlines on the macropad - they're labeled D1 through D12.
@@ -187,7 +194,8 @@ private fun HTML.renderKitInstructionsPage(devBoard: DevBoard) {
                 |""".trimMargin()
         }
         h3 { +"Step 3: Attach your key switches" }
-        img(src = "/static/placeholder.png")
+        img(src = "/static/key_sw_back.jpg"); br()
+        img(src = "/static/key_sw_thru.jpg")
         narrowDiv {
             +"""
                 |Push your key switches into each of the 12 slots, and solder the metal terminals to the macropad from the bottom.
@@ -273,7 +281,7 @@ private fun HTML.renderFirmwarePage(devBoard: DevBoard) {
                         The 'README' file should indicate when this is the case. Here is an example of a matching 'README' 
                         and matching directory structure. NOTE THAT THE LIBRARIES IN THIS IMAGE MAY NOT BE UP TO DATE!
                     """.trimIndent()
-                    img(src = "/static/placeholder.png")
+                    img(src = "/static/library_hierarchy.png")
                 }
                 li {
                     +"""
