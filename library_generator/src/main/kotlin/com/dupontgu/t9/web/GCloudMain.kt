@@ -302,6 +302,9 @@ fun HTML.renderUsageInstructionsPage() {
     body {
         h1 { +"Usage Instructions" }
         h3 { a("/") { +"(Project Root)" } }
+        unsafe {
+            +"<iframe width=\"560\" height=\"315\" src=\"https://www.youtube.com/embed/ESmvoqq3m-g\" title=\"YouTube video player\" frameborder=\"0\" allow=\"accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture\" allowfullscreen></iframe>"
+        }; br(); br()
         narrowDiv {
             ol {
                 li { +"In general, you just need to tap the number key (2-9) containing the letter you’re trying to type. If you get to the end of the word, and there’s a word there that’s not the one you want, just hit the # button. That will cycle through all valid words that match the key pattern you’ve entered. For example, ‘gate’ and ‘have’ would both be available after typing 4-2-8-3." }
@@ -329,6 +332,9 @@ fun HTML.renderLibraryGeneratorPage() {
     body {
         h1 { +"Guy's T9 Library Generator" }
         h3 { a("/") { +"(Project Root)" } }
+        unsafe {
+            +"<iframe width=\"560\" height=\"315\" src=\"https://www.youtube.com/embed/l2_QFRZjvGE\" title=\"YouTube video player\" frameborder=\"0\" allow=\"accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture\" allowfullscreen></iframe>"
+        }; br(); br()
         +"This page allows you to customize the built-in word library on your "
         a("https://hackaday.io/project/179977-standalone-t9-predictive-keyboard") {
             +"Standalone T9 Predictive Keyboard."
