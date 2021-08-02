@@ -1,8 +1,9 @@
 import time
 from led import Led
-from keypad import Keypad
+from t9_keypad import Keypad
 from keyboard import Keyboard
 from keyboard import Keycode
+from t9_display import Display
 
 NO_WORD = 0
 PARTIAL_WORD = 1
@@ -34,6 +35,8 @@ keypad = Keypad(keys)
 time.sleep(1)  # Sleep for a bit to avoid a race condition on some systems
 keyboard = Keyboard()
 time.sleep(0.5) 
+
+display = Display()
 
 # Alternate macropad mode - map key input to function keys
 def run_macro_mode():
@@ -338,6 +341,7 @@ with open("library.t9l", "rb") as fp:
                 elif pres_count > 0:
                     word_index = (word_index + 1) % pres_count
                     submit(result.pres[word_index])
+                display.display_results(result, word_index)
                 continue
             # backspace, pop results stack
             if c == '1':
@@ -372,6 +376,7 @@ with open("library.t9l", "rb") as fp:
             # if we've run out of valid words/prefixes for a key sequence, just start appending the number
             elif c >= '2' and c <= '9':
                 emit_raw_text(c, False)
+            display.display_results(result, word_index)
             last_result = result
 
  
