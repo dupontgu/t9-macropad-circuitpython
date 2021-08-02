@@ -1,3 +1,4 @@
+### Check out the official project website [here](https://t9-library-generator.uk.r.appspot.com/)
 # Firmware
 This code _should_ run on any CircuitPython-enabled board, but is most useful when there is >= 4MB of flash.
 As of May 2021, it's only been tested on various RP2040 dev boards.
@@ -11,6 +12,7 @@ Currently supported boards:
 * [Pimoroni Tiny2040](./tiny2040)
 * [Raspberry Pi Pico](./pico)
 * [Adafruit QT Py RP2040](./qtpy2040)
+* [Adafruit MacroPad RP2040](./ada-macropad)
 
 There are also [`macos`](./macos)/[`win32`](./win32) folders, which contain mocked IO dependencies so that the firmware can be
 tested natively on desktop. *For key press detection on Mac, you'll need to give accessibility permissions to Python*.
