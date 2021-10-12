@@ -354,6 +354,10 @@ with open("library.t9l", "rb") as fp:
             # ignore any other keys we don't understand
             elif c < '2' or c > '9':
                 break
+            # emit for any number keys that don't have letters (if user has customized layout)
+            elif ord(keypad_dict[c][0]) < ord('a'):
+                emit_raw_text(keypad_dict[c][0])
+                break
             else:
                 # search the dictionary!
                 result = get_words(fp, c, last_result)
