@@ -1,7 +1,7 @@
 buildscript {
-    ext.kotlin_version = '1.5.10'
-    ext.ktor_version = '1.6.1'
-    ext.appengine_version = '1.9.60'
+    ext.kotlin_version = '1.6.20'
+    ext.ktor_version = '1.6.8'
+    ext.appengine_version = '1.9.95'
     ext.appengine_plugin_version = '2.4.1'
 }
 
@@ -14,15 +14,15 @@ apply plugin: 'war'
 apply plugin: 'com.google.cloud.tools.appengine'
 
 group 'com.dupontgu'
-version '0.0.5'
+version '0.1.0'
 
 repositories {
     mavenCentral()
 }
 
 dependencies {
-    implementation "org.jetbrains.kotlin:kotlin-stdlib"
-    implementation 'org.slf4j:slf4j-log4j12:1.7.29'
+    implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
+    implementation 'org.slf4j:slf4j-log4j12:1.7.36'
     compile "io.ktor:ktor-server-servlet:$ktor_version"
     compile "io.ktor:ktor-html-builder:$ktor_version"
 

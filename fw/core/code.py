@@ -8,6 +8,7 @@ from t9_display import Display
 NO_WORD = 0
 PARTIAL_WORD = 1
 WORD = 2
+NODE_HEADER_LEN = 3
 
 CACHE_SIZE = 8000
 # Used to store Trie node locations
@@ -146,13 +147,17 @@ else:
 # Flag to indicate to our main loop that we want to start a new word
 force_break_word = False
 
+def read_int(file, offset, len):
+    file.seek(offset)
+    return int.from_bytes(file.read(len), 'big')
+
 # given a file and location in that file, read a 24bit unsigned int
-def read_int(file, offset):
+def read_address(file, offset):
     if (offset < CACHE_SIZE):
         cached = file_cache[offset]
         if cached >= 0:
             return cached
-    file.seek(offset * 3)
+    file.seek(offset)
     x = int.from_bytes(file.read(3), 'big')
     if (offset < CACHE_SIZE):
         file_cache[offset] = x
@@ -162,11 +167,22 @@ def read_int(file, offset):
 def search(file, offset, s: str):
     poll_keys()
     if len(s) == 0:
-        file_val = read_int(file, offset)
-        return WORD if file_val == 1 else PARTIAL_WORD
+        word_flag = read_int(file, offset * 3, 1)   
+        return WORD if word_flag == 1 else PARTIAL_WORD
     else:
         ch = ord(s[0]) - ord('a')
-        file_val = read_int(file, offset + 1 + ch)
+        ch_bitmap = read_int(file, (offset * 3) + 1, 8)
+        if (ch_bitmap & (1 << ch) == 0):
+            return NO_WORD
+        ch_index = 0
+        shift_count = 0
+        while(ch_bitmap != 0 and shift_count < ch):
+            if ch_bitmap & 1:
+                ch_index += 1
+            ch_bitmap >>= 1
+            shift_count += 1
+
+        file_val = read_address(file, (offset + NODE_HEADER_LEN + ch_index) * 3)
         if file_val == 0xFFFFFF:
             return WORD if len(s) == 1 else NO_WORD
         elif file_val > 0:
@@ -304,7 +320,7 @@ def poll_keys():
                 key_queue.append(hk)
 
 ## MAIN LOOP
-with open("library.t9l", "rb") as fp:
+with open("library.t9l2", "rb") as fp:
     while True:
         word_index = 0
         current_word = ""
