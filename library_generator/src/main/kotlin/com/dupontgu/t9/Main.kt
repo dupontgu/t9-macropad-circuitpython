@@ -6,12 +6,15 @@ import java.util.*
 
 // Each pointer is a 24 bit address
 private const val ADDRESS_LENGTH_BYTES = 3
+// Each node will have a header with "metadata"
+private const val HEADER_LENGTH_WORDS = 3
+private const val HEADER_LENGTH_BYTES = HEADER_LENGTH_WORDS * ADDRESS_LENGTH_BYTES
 
 // newline delimited list of words for your T9 dictionary
 private const val DICT_FILE = "/dict.txt"
 
 // where the custom library file will be written
-private const val OUT_FILE = "library.t9l"
+private const val OUT_FILE = "library.t9l2"
 
 // a-z
 private const val ALPHA_COUNT = 26
@@ -24,7 +27,7 @@ private const val MAX_LINE_LEN = 25
 private fun String.hasValidLength() = length <= MAX_LINE_LEN
 
 sealed class LibraryResult : Throwable() {
-    data class Success(val numBytesWritten: Int) : LibraryResult()
+    data class Success(val numBytesWritten: Long) : LibraryResult()
     sealed class Error(override val message: String) : LibraryResult() {
         data class LineTooLongError(val line: String) : Error("Error: this file contains a line that is too long: ${line.take(25)}")
         data class InvalidLineError(val line: String) : Error("Error: this file contains a line that contains invalid characters: ${line.take(25)}")
@@ -50,19 +53,17 @@ fun serializeLibraryFile(input: InputStream, output: OutputStream): LibraryResul
 
     // serialize the tree
     val queue = ArrayDeque<TrieNode>().apply { addFirst(tree) }
-    val serializedTreeAddresses = mutableListOf<UInt>()
-    var offset = 0u
-    while (!queue.isEmpty()) {
-        val node = queue.pollFirst()
-        val size = node.flattenAddresses(offset, queue, serializedTreeAddresses)
-        offset += size
+
+    var offset = queue.peekFirst().nodeSize.toUInt()
+    output.use { stream ->
+        while (!queue.isEmpty()) {
+            val node = queue.pollFirst()
+            val size = node.serializeTo(offset, queue) { stream.write(it.toByteArray()) }
+            offset += size
+        }
     }
 
-    // convert UInts to 3 byte addresses
-    val flatList = serializedTreeAddresses.flatMap { it.toBytes() }
-    // write to output
-    output.use { it.write(flatList.toByteArray()) }
-    return LibraryResult.Success(flatList.size)
+    return LibraryResult.Success((offset.toLong() * ADDRESS_LENGTH_BYTES))
 }
 
 fun main() {
@@ -76,6 +77,27 @@ fun main() {
             is LibraryResult.Error.InvalidLineError -> "ERROR! Line contains invalid characters: ${result.line.take(25)}(...)"
         }
     )
+}
+
+class NodeHeader(
+    private val nodeIsWord: Boolean
+) {
+    private val flags = BitSet()
+    fun serializeTo(output: SerializedOutput) {
+        val bytes = MutableList<Byte>(HEADER_LENGTH_BYTES) { 0 }
+        bytes[0] = if(nodeIsWord) 1 else 0
+        var i = HEADER_LENGTH_BYTES - 1
+        flags.toByteArray().forEach { bytes[i--] = it }
+        output.write(bytes)
+    }
+
+    operator fun set(index: Int, value: Boolean) {
+        flags[index] = value
+    }
+}
+
+fun interface SerializedOutput {
+    fun write(bytes: Collection<Byte>)
 }
 
 sealed class TrieNode {
@@ -100,16 +122,16 @@ sealed class TrieNode {
         return when (fetch(string)) {
             is WordParentNode -> true
             is OnlyParentNode -> false
-            OnlyWordNode -> true
-            NullNode -> false
+            is OnlyWordNode -> true
+            is NullNode -> false
         }
     }
 
-    open fun flattenAddresses(offset: UInt, queue: Queue<TrieNode>, collector: MutableCollection<UInt>): UInt {
+    open fun serializeTo(offset: UInt, queue: Queue<TrieNode>, output: SerializedOutput): UInt {
         return 0u
     }
 
-    abstract val trieSize: Int
+    abstract val nodeSize: Int
 }
 
 val Char.alphaIndex: Int
@@ -149,21 +171,28 @@ sealed class ParentNode(
                 "\n)"
     }
 
-    override val trieSize: Int = ALPHA_COUNT + 1
+    private val populatedChars
+        get() = chars.count { it !is NullNode }
 
-    override fun flattenAddresses(offset: UInt, queue: Queue<TrieNode>, collector: MutableCollection<UInt>): UInt {
-        val sizes = chars.scan(0u) { acc, trieNode -> acc + trieNode.trieSize.toUInt() }
-        val thisRow = chars.mapIndexed { index, node ->
-            return@mapIndexed when (node) {
-                is ParentNode -> offset + chars.size.toUInt() + 1u + sizes[index]
-                OnlyWordNode -> 0xFFFFFFu
-                NullNode -> 0x00u
+    override val nodeSize: Int
+        get() = populatedChars + HEADER_LENGTH_WORDS
+
+    override fun serializeTo(offset: UInt, queue: Queue<TrieNode>, output: SerializedOutput): UInt {
+        val header = NodeHeader(isWord)
+        val sizes = chars.scan(0u) { acc, trieNode -> acc + trieNode.nodeSize.toUInt() }
+        val thisRow = chars.flatMapIndexed { index, node ->
+            val address = when (node) {
+                is ParentNode -> (offset + sizes[index])
+                is OnlyWordNode -> 0xFFFFFFu
+                is NullNode -> null
             }
+            header[index] = address != null
+            return@flatMapIndexed address?.toBytes().orEmpty()
         }
         queue.addAll(chars)
-        collector.add(if (isWord) 1u else 0u)
-        collector.addAll(thisRow)
-        return sizes.last().toUInt()
+        header.serializeTo(output)
+        output.write(thisRow)
+        return sizes.last()
     }
 }
 
@@ -213,7 +242,7 @@ object OnlyWordNode : TrieNode() {
     override fun fetch(char: Char): TrieNode = NullNode
 
     override fun insert(string: String): TrieNode {
-        if (string.isEmpty()) return OnlyWordNode
+        if (string.isEmpty()) return this
         val first = string.first()
         val newParent = WordParentNode()
         if (string.length == 1) {
@@ -226,7 +255,7 @@ object OnlyWordNode : TrieNode() {
 
     override fun toString(): String = "ChildNode"
 
-    override val trieSize: Int = 0
+    override val nodeSize: Int = 0
 }
 
 /**
@@ -244,7 +273,7 @@ object NullNode : TrieNode() {
 
     override fun toString(): String = "Null"
 
-    override val trieSize: Int = 0
+    override val nodeSize: Int = 0
 }
 
 /**
