@@ -4,6 +4,8 @@ from t9_keypad import Keypad
 from keyboard import Keyboard
 from keyboard import Keycode
 from t9_display import Display
+from key_map import key_map
+from character_map import character_map
 
 NO_WORD = 0
 PARTIAL_WORD = 1
@@ -93,20 +95,6 @@ class Results():
     def __str__(self):
         return f'keys: {self.keys}, words: {self.words}, pres: {self.pres}'
 
-keypad_dict = {
-    '1' : ['1'],
-    '2' : ['a', 'b', 'c'],
-    '3' : ['d', 'e', 'f'],
-    '4' : ['g', 'h', 'i'],
-    '5' : ['j', 'k', 'l'],
-    '6' : ['m', 'n', 'o'],
-    '7' : ['p', 'q', 'r', 's'],
-    '8' : ['t', 'u', 'v'],
-    '9' : ['w', 'x', 'y', 'z'],
-    '0' : [' ', '0', '\n'],
-    '#' : ['.', ',', '?', '!']
-}
-
 def error_mode():
     print("ERROR!")
     while True:
@@ -114,7 +102,7 @@ def error_mode():
         pass
 
 reverse_key_dict = { }
-for k, l in keypad_dict.items():
+for k, l in key_map.items():
     for c in l:
         reverse_key_dict[c] = k
 
@@ -170,7 +158,7 @@ def search(file, offset, s: str):
         word_flag = read_int(file, offset * 3, 1)   
         return WORD if word_flag == 1 else PARTIAL_WORD
     else:
-        ch = ord(s[0]) - ord('a')
+        ch = character_map[s[0]]
         ch_bitmap = read_int(file, (offset * 3) + 1, 8)
         if (ch_bitmap & (1 << ch) == 0):
             return NO_WORD
@@ -192,7 +180,7 @@ def search(file, offset, s: str):
 # Given an open file, a key, and a list of valid prefixes, find all possible words/prefixes
 def get_words(file, input, last_result):
     # Note that each key has up to 4 possible chars, so we'll need to try all of them
-    chars = keypad_dict[input]
+    chars = key_map[input]
     output_words = []
     output_prefixes = []
     for prefix in (last_result.words + last_result.pres):
@@ -269,7 +257,7 @@ def poll_keys_modified(current_keys):
             force_break_word = True
             held_modified_keys.append(k)
             now = time.monotonic()
-            key_dict = keypad_dict[k]
+            key_dict = key_map[k]
             if k is not last_modified_key or (now - last_modified_time > 0.6):
                 flush_last_modified()
                 emit_raw_text(key_dict[0])
@@ -371,8 +359,8 @@ with open("library.t9l2", "rb") as fp:
             elif c < '2' or c > '9':
                 break
             # emit for any number keys that don't have letters (if user has customized layout)
-            elif ord(keypad_dict[c][0]) < ord('a'):
-                emit_raw_text(keypad_dict[c][0])
+            elif ord(key_map[c][0]) < ord('a'):
+                emit_raw_text(key_map[c][0])
                 break
             else:
                 # search the dictionary!

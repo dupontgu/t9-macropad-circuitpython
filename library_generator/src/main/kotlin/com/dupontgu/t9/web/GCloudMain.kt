@@ -1,7 +1,9 @@
 package com.dupontgu.t9.web
 
-import LibraryResult
+import KEY_MAP_FILE
+import com.dupontgu.t9.*
 import com.dupontgu.t9.web.DevBoard.*
+import com.dupontgu.t9.writeKeyMapFile
 import io.ktor.application.*
 import io.ktor.features.*
 import io.ktor.html.*
@@ -12,12 +14,13 @@ import io.ktor.response.*
 import io.ktor.routing.*
 import kotlinx.html.*
 import org.apache.log4j.BasicConfigurator
-import serializeLibraryFile
+import org.zeroturnaround.zip.ZipUtil
 import java.lang.IllegalArgumentException
-import java.util.*
 import kotlin.io.path.createTempFile
 
-private const val LIB_FILE_NAME = "library.t9l"
+private const val ARCHIVE_NAME = "t9_library.zip"
+private const val LIB_FILE_NAME = "library.t9l2"
+private const val VERSION_FILE_NAME = "version.txt"
 
 private enum class DevBoard(
     val displayName: String
@@ -67,20 +70,38 @@ fun Application.main() {
             call.respondHtml(HttpStatusCode.OK) { renderFirmwarePage(devBoard) }
         }
 
+        get("/fw-update/{board}") {
+            val devBoard = call.parseDevBoard() ?: return@get call.respond(HttpStatusCode.NotFound)
+            call.respondHtml(HttpStatusCode.OK) { renderFirmwareUpdatePage(devBoard) }
+        }
+
+        val keyMapPrefix = "keyMap"
+        val libraryPrefix = "library"
         post("/upload") { _ ->
             val multipart = call.receiveMultipart()
             var responded = false
             multipart.forEachPart { part ->
                 if (part is PartData.FileItem) {
-                    val tempFile = createTempFile(prefix = UUID.randomUUID().toString()).toFile()
-                    val result = serializeLibraryFile(part.streamProvider(), tempFile.outputStream())
+                    val libraryFile = createTempFile(prefix = libraryPrefix).toFile()
+                    val result = serializeLibraryFile(part.streamProvider(), libraryFile.outputStream())
                     if (result is LibraryResult.Error) {
                         call.respond(HttpStatusCode.UnprocessableEntity, result.message)
-                    } else {
-                        call.response.header("Content-Disposition", "attachment; filename=\"$LIB_FILE_NAME\"")
-                        call.respondFile(tempFile)
+                        responded = true
+                    } else if (result is LibraryResult.Success) {
+                        val keyMapFile = createTempFile(prefix = keyMapPrefix).toFile()
+                        val archive = createTempFile(prefix = "archive").toFile()
+                        writeKeyMapFile(result, keyMapFile)
+                        ZipUtil.packEntries(arrayOf(libraryFile, keyMapFile), archive) {
+                            when {
+                                it.startsWith(keyMapPrefix) -> KEY_MAP_FILE
+                                it.startsWith(libraryPrefix) -> LIB_FILE_NAME
+                                else -> it
+                            }
+                        }
+                        call.response.header("Content-Disposition", "attachment; filename=\"$ARCHIVE_NAME\"")
+                        call.respondFile(archive)
+                        responded = true
                     }
-                    responded = true
                 }
                 part.dispose()
             }
@@ -91,7 +112,6 @@ fun Application.main() {
                 )
             }
         }
-
     }
 }
 
@@ -102,16 +122,37 @@ fun HTML.renderRootPage() {
     body {
         h1 { +"Standalone T9 Keypad" }
         h2 { +"By Guy Dupont" }
-        +"Read the usage instructions "; a("/usage") { +"here." }; br()
-        +"Generate your own custom T9 library "; a("/library") { +"here." }; br()
-        +"Purchase "; a("https://www.etsy.com/shop/EsotericGadgetsByGuy?ele=shop_open") { +"here!!" }; +" (limited supply)"; br();
-        +"If you have the DIY kit (or just the PCB), assembly instructions are "; a("/board?destination=assembly") { +"here." }; br();
-        +"If you need to install the T9 firmware, check "; a("/board?destination=firmware") { +"here." }; br();
-        +"Follow Guy on Twitter "; a("https://twitter.com/gvy_dvpont") { +"here." }; br()
-        +"Email Guy at "; a("mailto:gvy.dvpont@gmail.com") { +"gvy.dvpont@gmail.com." }; br()
-        +"Watch the YouTube video "; a("https://youtu.be/6cbBSEbwLUI") { +"here." }; br()
-        +"See the Hackaday.io project page "; a("https://hackaday.io/project/179977-standalone-t9-predictive-keyboard") { +"here." }; br()
-        +"Find the source code "; a("https://github.com/dupontgu/t9-macropad-circuitpython") { +"here." }; br()
+        h3 { +"If you already have a working T9 Keypad:" }
+        ul {
+            li { +"Read the usage instructions "; a("/usage") { +"here." }; }
+            li { +"Generate your own custom T9 library "; a("/library") { +"here." }; }
+            li { +"Update to the latest version of the firmware "; a("/board?destination=fw-update") { +"here." }; }
+        }
+        h3 { +"If you do not yet have a T9 Keypad:" }
+        ul {
+            li {
+                +"Purchase "; a("https://www.etsy.com/shop/EsotericGadgetsByGuy?ele=shop_open") { +"here!!" }; +" (kits available as well)";
+            }
+        }
+        h3 { +"If you have a kit, or are building on your own:" }
+        ul {
+            li { +"Assembly instructions are "; a("/board?destination=assembly") { +"here." }; }
+            li { +"If you need to install the T9 firmware, check "; a("/board?destination=firmware") { +"here." }; }
+        }
+
+        h3 { +"If you want to get in touch with Guy:" }
+        ul {
+            li { +"Follow Guy on Twitter "; a("https://twitter.com/gvy_dvpont") { +"here." }; }
+            li { +"Email Guy at "; a("mailto:gvy.dvpont@gmail.com") { +"gvy.dvpont@gmail.com." }; }
+        }
+
+        h3 { +"If want to learn more about the project:" }
+        ul {
+            li { +"Watch the YouTube video "; a("https://youtu.be/6cbBSEbwLUI") { +"here." }; }
+            li { +"See the Hackaday.io project page "; a("https://hackaday.io/project/179977-standalone-t9-predictive-keyboard") { +"here." }; }
+            li { +"Find the source code "; a("https://github.com/dupontgu/t9-macropad-circuitpython") { +"here." }; }
+        }
+
     }
 }
 
@@ -153,9 +194,11 @@ private fun HTML.renderKitInstructionsPage(devBoard: DevBoard) {
         title { +"T9 Keypad Assembly" }
         style {
             unsafe {
-                raw("""
+                raw(
+                    """
                        img { max-width: 800px; }
-                       """)
+                       """
+                )
             }
         }
     }
@@ -231,7 +274,7 @@ private fun HTML.renderFirmwarePage(devBoard: DevBoard) {
                 li {
                     +"Dowload the latest version of CircuitPython for the "
                     a(devBoard.circuitPythonLink) { +"${devBoard.displayName}." }
-                    +" As of July 2021, version 6.3.0 works great on all boards."
+                    +" As of April 2022, version 7.2.5 works great on all boards."
                 }
                 li {
                     +"On your development board, hold the button labeled 'boot', and plug it into your computer."
@@ -251,7 +294,7 @@ private fun HTML.renderFirmwarePage(devBoard: DevBoard) {
                 }
                 li {
                     +"Find the latest T9 firmware release on the "
-                    a("https://github.com/dupontgu/t9-macropad-circuitpython/releases"){ +"GitHub releases page." }
+                    a("https://github.com/dupontgu/t9-macropad-circuitpython/releases") { +"GitHub releases page. " }
                     +"""
                         Each release should have a list of .zip files associated with it. Find the one that matches your dev board.
                         This board's zip file should be called: ${devBoard.fwZipName}.zip. Download and unzip it.
@@ -269,7 +312,7 @@ private fun HTML.renderFirmwarePage(devBoard: DevBoard) {
                         Download the CircuitPython library bundle that matches the CircuitPython version that you installed.
                         You can find all versions of the bundle 
                     """.trimIndent()
-                    a("https://circuitpython.org/libraries"){ +"here." }
+                    a("https://circuitpython.org/libraries") { +"here." }
                 }
                 li {
                     +"""
@@ -286,6 +329,49 @@ private fun HTML.renderFirmwarePage(devBoard: DevBoard) {
                 li {
                     +"""
                         With CircuitPython, the T9 firmware, and the libraries installed, the board should reboot
+                        and the light should turn blue after ~5 seconds. You're good to go! Check out the full usage instructions 
+                    """.trimIndent()
+                    a("/usage") { +"here!" }
+                }
+            }
+        }
+    }
+}
+
+private fun HTML.renderFirmwareUpdatePage(devBoard: DevBoard) {
+    head {
+        title { +"T9 Firmware Update Instructions" }
+    }
+    body {
+        h1 { +"Updating T9 CircuitPython Firmware" }
+        h2 { +"Note - only follow these steps if you already have a working T9 Keypad." }
+        h3 { a("/") { +"(Project Root)" } }
+        narrowDiv {
+            ol {
+                li {
+                    +"""
+                        Plug your T9 keypad into your computer. Your computer should recognize it as both a 
+                        keyboard and a mass storage device. The storage device is likely named: 'CIRCUITPY'.
+                    """.trimIndent()
+                }
+                li {
+                    +"Find the latest T9 firmware release on the "
+                    a("https://github.com/dupontgu/t9-macropad-circuitpython/releases") { +"GitHub releases page. " }
+                    +"""
+                        Each release should have a list of .zip files associated with it. Find the one that matches your dev board.
+                        This board's zip file should be called: ${devBoard.fwZipName}.zip. Download and unzip it.
+                    """.trimIndent()
+                }
+                li {
+                    +"""
+                        Copy all of the files from the extracted ${devBoard.fwZipName} folder onto your dev board, 
+                        which should still be mounted on your computer as 'CIRCUITPY'. Overwrite any conflicting files.
+                        This may take a minute. Do not delete any existing files!
+                    """.trimIndent()
+                }
+                li {
+                    +"""
+                        The board should automatically reboot
                         and the light should turn blue after ~5 seconds. You're good to go! Check out the full usage instructions 
                     """.trimIndent()
                     a("/usage") { +"here!" }
@@ -331,6 +417,17 @@ fun HTML.renderLibraryGeneratorPage() {
     }
     body {
         h1 { +"Guy's T9 Library Generator" }
+        h2 { +"IMPORTANT! Library files generated by this page will only work with keypads running (at least) version 2 of the firmware." }
+        narrowDiv {
+            +"""
+                If you are unsure which version of the firmware you are running, plug your keypad into a computer. 
+                Open the CIRCUITPY drive in your file explorer.
+                Look for a file named $VERSION_FILE_NAME. If the file does not exist, you are running version 1 and need to update.
+                Otherwise, the file will tell you which version is currently running.
+                If you need to update, follow the instructions 
+            """.trimIndent()
+            a("/board?destination=fw-update") { +"here." };
+        }
         h3 { a("/") { +"(Project Root)" } }
         unsafe {
             +"<iframe width=\"560\" height=\"315\" src=\"https://www.youtube.com/embed/l2_QFRZjvGE\" title=\"YouTube video player\" frameborder=\"0\" allow=\"accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture\" allowfullscreen></iframe>"
@@ -341,15 +438,18 @@ fun HTML.renderLibraryGeneratorPage() {
         }; br()
         +"Use the form below to upload a text file containing the words you'd like available on your keyboard."; br()
         +"The file should be a plain .txt file, and each line should contain exactly one word."; br()
-        +"Currently, words can only contain the letters A-Z (upper or lowercase), and can only be 25 characters long."; br()
-        a("https://raw.githubusercontent.com/dupontgu/t9-macropad-circuitpython/main/library_generator/src/main/resources/dict.txt") { +"Here" }
-        +" you can find my default list of words. Feel free to download this file (File -> Save As) and add or remove words as you see fit!"
+        +"The T9 algorithm is language agnostic, but only the following characters are currently supported:"; br()
+        +"${charMap.keys}"; br()
+        a("https://raw.githubusercontent.com/oprogramador/most-common-words-by-language/master/src/resources/english.txt") { +"Here" }
+        +" you can find a default list of English words. Feel free to download this file (File -> Save As) and add or remove words as you see fit!"; br()
+        +"For other languages, check "
+        a("https://github.com/oprogramador/most-common-words-by-language/tree/master/src/resources") { +"here." }
         br(); br()
         +"When you successfully upload a word library file using the \"Browse\" button below, you will be given the option to download a new file, named "
-        b { +LIB_FILE_NAME }; +"."; br()
-        +"Drag and drop this .t9l file on to your T9 keyboard drive (likely named CIRCUITPY) and replace the existing file with the same name."; br()
-        +"Back up the old file first if you want to save it! You can name it anything, but the keyboard will only use the file named $LIB_FILE_NAME as it's current library. "; br()
-        +"Once the new file has loaded (it may take a minute or so), the keyboard will reboot and your new library will be loaded!"
+        b { +ARCHIVE_NAME }; +"."; br()
+        +"Extract all files from this archive, them drag-and-drop them on to your T9 keyboard drive (likely named CIRCUITPY). Replace the existing files with the same name."; br()
+        b { +"Back up the old files first if you want to save them!"; br() }
+        +"Once the new files have loaded (it may take a minute or so), the keyboard will reboot and your new library will be loaded!"
         br(); br()
         form(action = "upload", method = FormMethod.post) {
             input(InputType.file, formEncType = InputFormEncType.multipartFormData, name = "File here!")
@@ -361,3 +461,4 @@ fun HTML.renderLibraryGeneratorPage() {
         }
     }
 }
+
