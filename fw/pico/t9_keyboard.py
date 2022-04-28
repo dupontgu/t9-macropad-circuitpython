@@ -1,12 +1,12 @@
 import usb_hid
 import adafruit_hid.keyboard
-from adafruit_hid.keyboard_layout_us import KeyboardLayoutUS
+from adafruit_hid.keyboard_layout import KeyboardLayout
 import adafruit_hid.keycode
 
 class Keyboard():
     def __init__(self):
         self.keyboard = adafruit_hid.keyboard.Keyboard(usb_hid.devices)
-        self.keyboard_layout = KeyboardLayoutUS(self.keyboard)
+        self.keyboard_layout = KeyboardLayout(self.keyboard)
 
     def press(self, key):
         self.keyboard.press(key)

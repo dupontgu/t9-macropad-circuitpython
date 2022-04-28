@@ -1,8 +1,8 @@
 import time
 from led import Led
 from t9_keypad import Keypad
-from keyboard import Keyboard
-from keyboard import Keycode
+from t9_keyboard import Keyboard
+from t9_keyboard import Keycode
 from t9_display import Display
 from key_map import key_map
 from character_map import character_map
