@@ -79,7 +79,7 @@ val globalKeyMap = mapOf(
     '8' to listOf('t', 'u', 'v', 'þ', 'û', 'ü', 'ù', 'ú', 'ū'),
     '9' to listOf('w', 'x', 'y', 'z'),
     '0' to listOf(' ', '0', '\n'),
-    '#' to listOf('.', ',', '?', '!', '¿', '¡')
+    '#' to listOf('.', ',', '?', '!')
 )
 
 // These characters should be available in every language
