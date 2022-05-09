@@ -5,7 +5,7 @@
     * `adafruit_hid/consumer_control_code.mpy`
     * `adafruit_hid/consumer_control.mpy`
     * `adafruit_hid/gamepad.mpy`
-    * `adafruit_hid/keyboard_layout_us.mpy`
+    * `adafruit_hid/keyboard_layout.mpy` (It may be called `keyboard_layout_us.py` - if so, rename it without the `_us`)
     * `adafruit_hid/keyboard.mpy`
     * `adafruit_hid/keycode.mpy`
     * `adafruit_hid/mouse.mpy`

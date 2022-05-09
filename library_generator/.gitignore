@@ -1,5 +1,5 @@
-library.t9l
 .gradle/
 build/
+output/
 .idea/
 local.properties
