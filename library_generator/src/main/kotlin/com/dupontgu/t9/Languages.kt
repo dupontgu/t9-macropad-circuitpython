@@ -1,6 +1,9 @@
 package com.dupontgu.t9
 
-enum class Languages(val languageCode: String, val librarySourceUrl: String) {
+enum class Languages(
+    val languageCode: String,
+    val librarySourceUrl: String
+) {
     ENGLISH(
         "en",
         "https://raw.githubusercontent.com/oprogramador/most-common-words-by-language/master/src/resources/english.txt"
@@ -129,6 +132,18 @@ val charMap = (
             throw RuntimeException("Missing key mapping for character: $key!")
         }
     }
+
+enum class KeyboardLayout {
+    EN_US,
+    EN_UK,
+    ES,
+    FR,
+    IT,
+    DA,
+    SW,
+    DE,
+    PT_BR
+}
 
 
 

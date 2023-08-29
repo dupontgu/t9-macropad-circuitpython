@@ -4,14 +4,14 @@ import KEY_MAP_FILE
 import com.dupontgu.t9.*
 import com.dupontgu.t9.web.DevBoard.*
 import com.dupontgu.t9.writeKeyMapFile
-import io.ktor.application.*
-import io.ktor.features.*
-import io.ktor.html.*
 import io.ktor.http.*
 import io.ktor.http.content.*
-import io.ktor.request.*
-import io.ktor.response.*
-import io.ktor.routing.*
+import io.ktor.server.application.*
+import io.ktor.server.html.*
+import io.ktor.server.plugins.defaultheaders.*
+import io.ktor.server.request.*
+import io.ktor.server.response.*
+import io.ktor.server.routing.*
 import kotlinx.html.*
 import org.apache.log4j.BasicConfigurator
 import org.zeroturnaround.zip.ZipUtil
@@ -33,8 +33,6 @@ fun Application.main() {
     BasicConfigurator.configure()
     // This adds Date and Server headers to each response, and allows custom additional headers
     install(DefaultHeaders)
-    // This uses use the logger to log every call (request/response)
-    install(CallLogging)
     // Registers routes
     routing {
 
