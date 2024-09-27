@@ -130,7 +130,7 @@ try:
                     error_mode()
                 key_seq = key_seq + key
             priority_words[key_seq] = line       
-except IOError:
+except OSError:
     pass
 
 # Choose mode based on held keys at startup
