@@ -1,13 +1,16 @@
 import time
 from led import Led
 from t9_keypad import Keypad
-from keyboard import Keyboard
-from keyboard import Keycode
+from t9_keyboard import Keyboard
+from t9_keyboard import Keycode
 from t9_display import Display
+from key_map import key_map
+from character_map import character_map
 
 NO_WORD = 0
 PARTIAL_WORD = 1
 WORD = 2
+NODE_HEADER_LEN = 3
 
 CACHE_SIZE = 8000
 # Used to store Trie node locations
@@ -92,20 +95,6 @@ class Results():
     def __str__(self):
         return f'keys: {self.keys}, words: {self.words}, pres: {self.pres}'
 
-keypad_dict = {
-    '1' : ['1'],
-    '2' : ['a', 'b', 'c'],
-    '3' : ['d', 'e', 'f'],
-    '4' : ['g', 'h', 'i'],
-    '5' : ['j', 'k', 'l'],
-    '6' : ['m', 'n', 'o'],
-    '7' : ['p', 'q', 'r', 's'],
-    '8' : ['t', 'u', 'v'],
-    '9' : ['w', 'x', 'y', 'z'],
-    '0' : [' ', '0', '\n'],
-    '#' : ['.', ',', '?', '!']
-}
-
 def error_mode():
     print("ERROR!")
     while True:
@@ -113,7 +102,7 @@ def error_mode():
         pass
 
 reverse_key_dict = { }
-for k, l in keypad_dict.items():
+for k, l in key_map.items():
     for c in l:
         reverse_key_dict[c] = k
 
@@ -146,13 +135,17 @@ else:
 # Flag to indicate to our main loop that we want to start a new word
 force_break_word = False
 
+def read_int(file, offset, len):
+    file.seek(offset)
+    return int.from_bytes(file.read(len), 'big')
+
 # given a file and location in that file, read a 24bit unsigned int
-def read_int(file, offset):
+def read_address(file, offset):
     if (offset < CACHE_SIZE):
         cached = file_cache[offset]
         if cached >= 0:
             return cached
-    file.seek(offset * 3)
+    file.seek(offset)
     x = int.from_bytes(file.read(3), 'big')
     if (offset < CACHE_SIZE):
         file_cache[offset] = x
@@ -162,11 +155,22 @@ def read_int(file, offset):
 def search(file, offset, s: str):
     poll_keys()
     if len(s) == 0:
-        file_val = read_int(file, offset)
-        return WORD if file_val == 1 else PARTIAL_WORD
+        word_flag = read_int(file, offset * 3, 1)   
+        return WORD if word_flag == 1 else PARTIAL_WORD
     else:
-        ch = ord(s[0]) - ord('a')
-        file_val = read_int(file, offset + 1 + ch)
+        ch = character_map[s[0]]
+        ch_bitmap = read_int(file, (offset * 3) + 1, 8)
+        if (ch_bitmap & (1 << ch) == 0):
+            return NO_WORD
+        ch_index = 0
+        shift_count = 0
+        while(ch_bitmap != 0 and shift_count < ch):
+            if ch_bitmap & 1:
+                ch_index += 1
+            ch_bitmap >>= 1
+            shift_count += 1
+
+        file_val = read_address(file, (offset + NODE_HEADER_LEN + ch_index) * 3)
         if file_val == 0xFFFFFF:
             return WORD if len(s) == 1 else NO_WORD
         elif file_val > 0:
@@ -176,7 +180,7 @@ def search(file, offset, s: str):
 # Given an open file, a key, and a list of valid prefixes, find all possible words/prefixes
 def get_words(file, input, last_result):
     # Note that each key has up to 4 possible chars, so we'll need to try all of them
-    chars = keypad_dict[input]
+    chars = key_map[input]
     output_words = []
     output_prefixes = []
     for prefix in (last_result.words + last_result.pres):
@@ -253,7 +257,7 @@ def poll_keys_modified(current_keys):
             force_break_word = True
             held_modified_keys.append(k)
             now = time.monotonic()
-            key_dict = keypad_dict[k]
+            key_dict = key_map[k]
             if k is not last_modified_key or (now - last_modified_time > 0.6):
                 flush_last_modified()
                 emit_raw_text(key_dict[0])
@@ -304,7 +308,7 @@ def poll_keys():
                 key_queue.append(hk)
 
 ## MAIN LOOP
-with open("library.t9l", "rb") as fp:
+with open("library.t9l2", "rb") as fp:
     while True:
         word_index = 0
         current_word = ""
@@ -355,8 +359,8 @@ with open("library.t9l", "rb") as fp:
             elif c < '2' or c > '9':
                 break
             # emit for any number keys that don't have letters (if user has customized layout)
-            elif ord(keypad_dict[c][0]) < ord('a'):
-                emit_raw_text(keypad_dict[c][0])
+            elif ord(key_map[c][0]) < ord('a'):
+                emit_raw_text(key_map[c][0])
                 break
             else:
                 # search the dictionary!
